@@ -66,6 +66,19 @@ type CurrentPartitionEvents struct {
 	Events []PartitionEvent
 }
 
+// NodeEvent ...
+type NodeEvent struct {
+	Type        EventType
+	NodeID      NodeID
+	Address     string
+	ModRevision Revision
+}
+
+// NodeEvents ...
+type NodeEvents struct {
+	Events []NodeEvent
+}
+
 // RunnerEvent ...
 type RunnerEvent struct {
 	Type        RunnerEventType
