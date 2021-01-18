@@ -184,3 +184,143 @@ func TestAllocatePartitions(t *testing.T) {
 		})
 	}
 }
+
+func TestPartitionDataEqual(t *testing.T) {
+	table := []struct {
+		name   string
+		a      PartitionData
+		b      PartitionData
+		output bool
+	}{
+		{
+			name:   "both-empty",
+			output: true,
+		},
+		{
+			name: "a-persisted",
+			a: PartitionData{
+				Persisted: true,
+			},
+			output: false,
+		},
+		{
+			name: "b-persisted",
+			b: PartitionData{
+				Persisted: true,
+			},
+			output: false,
+		},
+		{
+			name: "both-persisted.same-id-mod",
+			a: PartitionData{
+				Persisted:   true,
+				NodeID:      20,
+				ModRevision: 212,
+			},
+			b: PartitionData{
+				Persisted:   true,
+				NodeID:      20,
+				ModRevision: 212,
+			},
+			output: true,
+		},
+		{
+			name: "both-persisted.same-id-not-mod",
+			a: PartitionData{
+				Persisted:   true,
+				NodeID:      20,
+				ModRevision: 212,
+			},
+			b: PartitionData{
+				Persisted:   true,
+				NodeID:      20,
+				ModRevision: 222,
+			},
+			output: false,
+		},
+		{
+			name: "both-persisted.same-mod-not-id",
+			a: PartitionData{
+				Persisted:   true,
+				NodeID:      30,
+				ModRevision: 222,
+			},
+			b: PartitionData{
+				Persisted:   true,
+				NodeID:      20,
+				ModRevision: 222,
+			},
+			output: false,
+		},
+	}
+
+	for _, e := range table {
+		t.Run(e.name, func(t *testing.T) {
+			output := partitionDataEqual(e.a, e.b)
+			assert.Equal(t, e.output, output)
+		})
+	}
+}
+
+func TestPartitionExpectedEqual(t *testing.T) {
+	table := []struct {
+		name   string
+		a      []Partition
+		b      []Partition
+		output bool
+	}{
+		{
+			name:   "both-empty",
+			output: true,
+		},
+		{
+			name: "diff-size",
+			a: []Partition{
+				{
+				},
+			},
+			output: false,
+		},
+		{
+			name: "diff-one",
+			a: []Partition{
+				{
+					Expected: PartitionData{
+						Persisted: true,
+					},
+				},
+			},
+			b: []Partition{
+				{
+				},
+			},
+			output: false,
+		},
+		{
+			name: "same",
+			a: []Partition{
+				{
+					Expected: PartitionData{
+						Persisted: true,
+						NodeID:    11,
+					},
+				},
+			},
+			b: []Partition{
+				{
+					Expected: PartitionData{
+						Persisted: true,
+						NodeID:    11,
+					},
+				},
+			},
+			output: true,
+		},
+	}
+	for _, e := range table {
+		t.Run(e.name, func(t *testing.T) {
+			output := partitionExpectedEqual(e.a, e.b)
+			assert.Equal(t, e.output, output)
+		})
+	}
+}

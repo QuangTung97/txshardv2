@@ -107,3 +107,31 @@ func allocatePartitions(partitions []Partition, nodes map[NodeID]Node, partition
 
 	return result
 }
+
+func partitionDataEqual(a PartitionData, b PartitionData) bool {
+	if !a.Persisted && !b.Persisted {
+		return true
+	}
+	if a.Persisted && b.Persisted {
+		if a.ModRevision != b.ModRevision {
+			return false
+		}
+		if a.NodeID != b.NodeID {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+func partitionExpectedEqual(a []Partition, b []Partition) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !partitionDataEqual(a[i].Expected, b[i].Expected) {
+			return false
+		}
+	}
+	return true
+}
