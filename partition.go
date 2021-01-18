@@ -135,3 +135,45 @@ func partitionExpectedEqual(a []Partition, b []Partition) bool {
 	}
 	return true
 }
+
+type partitionActions struct {
+	put    bool
+	delete bool
+
+	start bool
+	stop  bool
+}
+
+func computePartitionActions(partition Partition, selfID NodeID) partitionActions {
+	var put bool
+	var deleted bool
+	var start bool
+	var stop bool
+
+	if partition.Running {
+		if !partition.Expected.Persisted || partition.Expected.NodeID != selfID {
+			stop = true
+		}
+	}
+
+	if partition.Current.Persisted && partition.Current.NodeID == selfID {
+		if !partition.Expected.Persisted || partition.Expected.NodeID != selfID {
+			deleted = true
+		}
+	}
+
+	if partition.Expected.Persisted && partition.Expected.NodeID == selfID {
+		if !partition.Current.Persisted {
+			put = true
+		} else if partition.Current.NodeID == selfID && !partition.Running {
+			start = true
+		}
+	}
+
+	return partitionActions{
+		put:    put,
+		delete: deleted,
+		start:  start,
+		stop:   stop,
+	}
+}

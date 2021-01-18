@@ -276,8 +276,7 @@ func TestPartitionExpectedEqual(t *testing.T) {
 		{
 			name: "diff-size",
 			a: []Partition{
-				{
-				},
+				{},
 			},
 			output: false,
 		},
@@ -291,8 +290,7 @@ func TestPartitionExpectedEqual(t *testing.T) {
 				},
 			},
 			b: []Partition{
-				{
-				},
+				{},
 			},
 			output: false,
 		},
@@ -321,6 +319,181 @@ func TestPartitionExpectedEqual(t *testing.T) {
 		t.Run(e.name, func(t *testing.T) {
 			output := partitionExpectedEqual(e.a, e.b)
 			assert.Equal(t, e.output, output)
+		})
+	}
+}
+
+func TestComputePartitionActions(t *testing.T) {
+	table := []struct {
+		name    string
+		input   Partition
+		selfID  NodeID
+		actions partitionActions
+	}{
+		{
+			name: "expected-empty.not-running",
+		},
+		{
+			name: "expected-empty.running",
+			input: Partition{
+				Running: true,
+			},
+			actions: partitionActions{
+				stop: true,
+			},
+		},
+		{
+			name:   "is-not-owner.not-running",
+			selfID: 12,
+			input: Partition{
+				Expected: PartitionData{
+					Persisted: true,
+					NodeID:    13,
+				},
+			},
+			actions: partitionActions{},
+		},
+		{
+			name:   "is-not-owner.running",
+			selfID: 12,
+			input: Partition{
+				Expected: PartitionData{
+					Persisted: true,
+					NodeID:    13,
+				},
+				Running: true,
+			},
+			actions: partitionActions{
+				stop: true,
+			},
+		},
+		{
+			name:   "owner-empty.current.not-running",
+			selfID: 12,
+			input: Partition{
+				Current: PartitionData{
+					Persisted: true,
+					NodeID:    12,
+				},
+			},
+			actions: partitionActions{
+				delete: true,
+			},
+		},
+		{
+			name:   "is-not-owner.current.not-running",
+			selfID: 12,
+			input: Partition{
+				Expected: PartitionData{
+					Persisted: true,
+					NodeID:    13,
+				},
+				Current: PartitionData{
+					Persisted: true,
+					NodeID:    12,
+				},
+			},
+			actions: partitionActions{
+				delete: true,
+			},
+		},
+		{
+			name:   "is-owner.current-empty.not-running",
+			selfID: 12,
+			input: Partition{
+				Expected: PartitionData{
+					Persisted: true,
+					NodeID:    12,
+				},
+			},
+			actions: partitionActions{
+				put: true,
+			},
+		},
+		{
+			name:   "is-owner.current-empty.running",
+			selfID: 12,
+			input: Partition{
+				Expected: PartitionData{
+					Persisted: true,
+					NodeID:    12,
+				},
+				Running: true,
+			},
+			actions: partitionActions{
+				put: true,
+			},
+		},
+		{
+			name:   "is-owner.not-current.not-running",
+			selfID: 12,
+			input: Partition{
+				Expected: PartitionData{
+					Persisted: true,
+					NodeID:    12,
+				},
+				Current: PartitionData{
+					Persisted: true,
+					NodeID:    13,
+				},
+			},
+			actions: partitionActions{},
+		},
+		{
+			name:   "is-owner.not-current.running",
+			selfID: 12,
+			input: Partition{
+				Expected: PartitionData{
+					Persisted: true,
+					NodeID:    12,
+				},
+				Current: PartitionData{
+					Persisted: true,
+					NodeID:    13,
+				},
+				Running: true,
+			},
+			actions: partitionActions{},
+		},
+		{
+			name:   "is-owner.current.not-running",
+			selfID: 12,
+			input: Partition{
+				Expected: PartitionData{
+					Persisted: true,
+					NodeID:    12,
+				},
+				Current: PartitionData{
+					Persisted: true,
+					NodeID:    12,
+				},
+			},
+			actions: partitionActions{
+				start: true,
+			},
+		},
+		{
+			name:   "is-owner.current.running",
+			selfID: 12,
+			input: Partition{
+				Expected: PartitionData{
+					Persisted: true,
+					NodeID:    12,
+				},
+				Current: PartitionData{
+					Persisted: true,
+					NodeID:    12,
+				},
+				Running: true,
+			},
+			actions: partitionActions{},
+		},
+	}
+
+	for _, e := range table {
+		t.Run(e.name, func(t *testing.T) {
+			actions := computePartitionActions(e.input, e.selfID)
+			assert.Equal(t, e.actions, actions)
 		})
 	}
 }
