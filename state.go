@@ -28,6 +28,9 @@ type State struct {
 // HandleOutput ...
 type HandleOutput struct {
 	Kvs []CASKeyValue
+
+	StartPartitions []PartitionID
+	StopPartitions  []PartitionID
 }
 
 // NewState ...
@@ -114,8 +117,53 @@ func computeHandleOutput(oldState *State, newState *State) HandleOutput {
 		kvs = append(kvs, computeExpectedPartitionKvs(newState)...)
 	}
 
+	var startPartitions []PartitionID
+	var stopPartitions []PartitionID
+
+	if newState.leaseID != 0 {
+		for id := PartitionID(0); id < conf.PartitionCount; id++ {
+			newPartition := newState.partitions[id]
+			oldPartition := oldState.partitions[id]
+			if partitionDataEqual(newPartition.Expected, oldPartition.Expected) &&
+				partitionDataEqual(newPartition.Current, oldPartition.Current) {
+				continue
+			}
+
+			modRevision := Revision(0)
+			if newPartition.Current.Persisted {
+				modRevision = newPartition.Current.ModRevision
+			}
+
+			actions := computePartitionActions(newPartition, conf.SelfNodeID)
+			if actions.put {
+				kvs = append(kvs, CASKeyValue{
+					Type:        EventTypePut,
+					Key:         conf.CurrentPartitionPrefix + formatPartitionID(id),
+					Value:       formatNodeID(conf.SelfNodeID),
+					LeaseID:     newState.leaseID,
+					ModRevision: modRevision,
+				})
+			}
+			if actions.delete {
+				kvs = append(kvs, CASKeyValue{
+					Type:        EventTypeDelete,
+					Key:         conf.CurrentPartitionPrefix + formatPartitionID(id),
+					ModRevision: modRevision,
+				})
+			}
+			if actions.start {
+				startPartitions = append(startPartitions, id)
+			}
+			if actions.stop {
+				stopPartitions = append(stopPartitions, id)
+			}
+		}
+	}
+
 	return HandleOutput{
-		Kvs: kvs,
+		Kvs:             kvs,
+		StartPartitions: startPartitions,
+		StopPartitions:  stopPartitions,
 	}
 }
 

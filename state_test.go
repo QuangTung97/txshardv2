@@ -453,12 +453,158 @@ func TestComputeHandleOutput(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:           "partition-put.expected-change.with-lease",
+			partitionCount: 3,
+			before: func(s *State) {
+				s.nodes = map[NodeID]Node{
+					12: {
+						ID: 12,
+					},
+					13: {
+						ID: 13,
+					},
+				}
+				s.leaderID = 12
+				s.leaseID = 1122
+			},
+			after: func(s *State) {
+				s.partitions[0].Expected = PartitionData{
+					Persisted:   true,
+					NodeID:      12,
+					ModRevision: 200,
+				}
+				s.partitions[1].Expected = PartitionData{
+					Persisted:   true,
+					NodeID:      12,
+					ModRevision: 201,
+				}
+				s.partitions[2].Expected = PartitionData{
+					Persisted:   true,
+					NodeID:      13,
+					ModRevision: 202,
+				}
+			},
+			output: HandleOutput{
+				Kvs: []CASKeyValue{
+					{
+						Type:    EventTypePut,
+						Key:     "/partition/current/0",
+						Value:   "12",
+						LeaseID: 1122,
+					},
+					{
+						Type:    EventTypePut,
+						Key:     "/partition/current/1",
+						Value:   "12",
+						LeaseID: 1122,
+					},
+				},
+			},
+		},
+		{
+			name:           "partition-current-changed.with-lease",
+			partitionCount: 3,
+			before: func(s *State) {
+				s.nodes = map[NodeID]Node{
+					12: {
+						ID: 12,
+					},
+					13: {
+						ID: 13,
+					},
+				}
+				s.leaderID = 12
+				s.leaseID = 1122
+
+				s.partitions[0].Expected = PartitionData{
+					Persisted:   true,
+					NodeID:      12,
+					ModRevision: 200,
+				}
+				s.partitions[1].Expected = PartitionData{
+					Persisted:   true,
+					NodeID:      13,
+					ModRevision: 201,
+				}
+				s.partitions[2].Expected = PartitionData{
+					Persisted:   true,
+					NodeID:      13,
+					ModRevision: 202,
+				}
+			},
+			after: func(s *State) {
+				s.partitions[0].Current = PartitionData{
+					Persisted:   true,
+					NodeID:      12,
+					ModRevision: 300,
+				}
+
+				s.partitions[1].Current = PartitionData{
+					Persisted:   true,
+					NodeID:      12,
+					ModRevision: 303,
+				}
+				s.partitions[1].Running = true
+
+				s.partitions[2].Current = PartitionData{
+					Persisted:   true,
+					NodeID:      13,
+					ModRevision: 302,
+				}
+			},
+			output: HandleOutput{
+				Kvs: []CASKeyValue{
+					{
+						Type:        EventTypeDelete,
+						Key:         "/partition/current/1",
+						ModRevision: 303,
+					},
+				},
+				StartPartitions: []PartitionID{0},
+				StopPartitions:  []PartitionID{1},
+			},
+		},
+		{
+			name:           "partition-actions.expected-change.without-lease",
+			partitionCount: 3,
+			before: func(s *State) {
+				s.nodes = map[NodeID]Node{
+					12: {
+						ID: 12,
+					},
+					13: {
+						ID: 13,
+					},
+				}
+				s.leaderID = 12
+			},
+			after: func(s *State) {
+				s.partitions[0].Expected = PartitionData{
+					Persisted:   true,
+					NodeID:      12,
+					ModRevision: 200,
+				}
+				s.partitions[1].Expected = PartitionData{
+					Persisted:   true,
+					NodeID:      12,
+					ModRevision: 201,
+				}
+				s.partitions[2].Expected = PartitionData{
+					Persisted:   true,
+					NodeID:      13,
+					ModRevision: 202,
+				}
+			},
+			output: HandleOutput{},
+		},
 	}
 
 	for _, e := range table {
 		t.Run(e.name, func(t *testing.T) {
 			oldState := NewState(&StateConfig{
 				ExpectedPartitionPrefix: "/partition/expected/",
+				CurrentPartitionPrefix:  "/partition/current/",
 				NodePrefix:              "/node/",
 				PartitionCount:          e.partitionCount,
 
