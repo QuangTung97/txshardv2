@@ -1,9 +1,27 @@
 package txshardv2
 
+import "sort"
+
 type updatedPartition struct {
 	id          PartitionID
 	nodeID      NodeID
 	modRevision Revision
+}
+
+type sortNodeID []NodeID
+
+var _ sort.Interface = sortNodeID{}
+
+func (s sortNodeID) Len() int {
+	return len(s)
+}
+
+func (s sortNodeID) Less(i, j int) bool {
+	return s[i] < s[j]
+}
+
+func (s sortNodeID) Swap(i, j int) {
+	s[j], s[i] = s[i], s[j]
 }
 
 func allocatePartitions(partitions []Partition, nodes map[NodeID]Node, partitionCount PartitionID) []updatedPartition {
@@ -22,6 +40,7 @@ func allocatePartitions(partitions []Partition, nodes map[NodeID]Node, partition
 		nodeIDs = append(nodeIDs, nodeID)
 		nodeIDSet[nodeID] = struct{}{}
 	}
+	sort.Sort(sortNodeID(nodeIDs))
 
 	allocationMin := int(partitionCount) / len(nodes)
 	allocationMaxCount := int(partitionCount) - allocationMin*len(nodes)

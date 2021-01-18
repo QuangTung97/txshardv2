@@ -99,6 +99,82 @@ func TestAllocatePartitions(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "7-partitions-4-1-0",
+			nodes: map[NodeID]Node{
+				13: {
+					ID: 13,
+				},
+				11: {
+					ID: 11,
+				},
+				12: {
+					ID: 12,
+				},
+			},
+			count: 7,
+			partitions: []Partition{
+				{
+					Expected: PartitionData{
+						Persisted:   true,
+						NodeID:      15,
+						ModRevision: 100,
+					},
+				},
+				{
+					Expected: PartitionData{
+						Persisted:   true,
+						NodeID:      11,
+						ModRevision: 200,
+					},
+				},
+				{
+					Expected: PartitionData{
+						Persisted:   true,
+						NodeID:      11,
+						ModRevision: 201,
+					},
+				},
+				{
+					Expected: PartitionData{
+						Persisted:   true,
+						NodeID:      11,
+						ModRevision: 202,
+					},
+				},
+				{
+					Expected: PartitionData{
+						Persisted:   true,
+						NodeID:      11,
+						ModRevision: 203,
+					},
+				},
+				{
+					Expected: PartitionData{
+						Persisted:   true,
+						NodeID:      12,
+						ModRevision: 204,
+					},
+				},
+				{},
+			},
+			output: []updatedPartition{
+				{
+					id:          0,
+					nodeID:      12,
+					modRevision: 100,
+				},
+				{
+					id:     6,
+					nodeID: 13,
+				},
+				{
+					id:          4,
+					nodeID:      13,
+					modRevision: 203,
+				},
+			},
+		},
 	}
 
 	for _, e := range table {

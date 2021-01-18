@@ -22,6 +22,7 @@ type State struct {
 	nodes    map[NodeID]Node
 }
 
+// HandleOutput ...
 type HandleOutput struct {
 	Kvs []CASKeyValue
 }
