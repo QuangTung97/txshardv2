@@ -84,8 +84,11 @@ func (m *EtcdManager) Run(originalCtx context.Context) {
 
 		go func() {
 			err := election.Campaign(ctx, formatNodeID(m.selfNodeID))
+			if ctx.Err() != nil {
+				return
+			}
 			if err != nil {
-				m.logger.Error("campaign expired")
+				m.logger.Error("campaign expired", zap.Error(err))
 				cancel()
 			}
 		}()
@@ -195,12 +198,14 @@ func (m *EtcdManager) WatchNodes(ctx context.Context, prefix string) <-chan Node
 			Address:     string(kv.Value),
 			ModRevision: Revision(kv.ModRevision),
 		}
-		m.logger.Debug("WatchNodes", zap.Any("node.event", event))
 		events = append(events, event)
 	}
 
-	result <- NodeEvents{
-		Events: events,
+	if len(events) > 0 {
+		m.logger.Debug("WatchNodes", zap.Any("node.events", events))
+		result <- NodeEvents{
+			Events: events,
+		}
 	}
 
 	ch := m.client.Watch(ctx, prefix, clientv3.WithPrefix(), clientv3.WithRev(rev+1))
@@ -217,9 +222,9 @@ func (m *EtcdManager) WatchNodes(ctx context.Context, prefix string) <-chan Node
 					Address:     string(e.Kv.Value),
 					ModRevision: Revision(e.Kv.ModRevision),
 				}
-				m.logger.Debug("WatchNodes", zap.Any("node.event", event))
 				events = append(events, event)
 			}
+			m.logger.Debug("WatchNodes", zap.Any("node.events", events))
 			result <- NodeEvents{
 				Events: events,
 			}

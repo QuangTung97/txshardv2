@@ -36,7 +36,7 @@ func main() {
 	}
 
 	system := txshardv2.NewSystem(nodeID, address,
-		"sample", 4,
+		"sample", 7,
 		func(ctx context.Context, partitionID txshardv2.PartitionID) {
 			logger.Info("Runner Start", zap.Any("runner.partition.id", partitionID))
 			<-ctx.Done()
