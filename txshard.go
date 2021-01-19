@@ -2,7 +2,6 @@ package txshardv2
 
 import (
 	"context"
-	"fmt"
 	"go.etcd.io/etcd/clientv3"
 	"go.uber.org/zap"
 	"sync"
@@ -84,7 +83,7 @@ func (s *System) Run(originalCtx context.Context) {
 	managerCancel()
 	managerWg.Wait()
 
-	fmt.Println("SYSTEM STOPPED")
+	s.logger.Info("System Stopped")
 }
 
 type activeRunner struct {

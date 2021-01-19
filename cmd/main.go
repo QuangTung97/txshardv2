@@ -29,7 +29,7 @@ func main() {
 	signal.Notify(done, os.Interrupt, os.Kill)
 
 	zapConf := zap.NewProductionConfig()
-	zapConf.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
+	zapConf.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
 	logger, err := zapConf.Build()
 	if err != nil {
 		panic(err)
