@@ -1,5 +1,7 @@
 package txshardv2
 
+import "context"
+
 // PartitionID ...
 type PartitionID uint32
 
@@ -40,9 +42,6 @@ type CASKeyValue struct {
 	LeaseID     LeaseID
 	ModRevision Revision
 }
-
-// Runner ...
-type Runner func(partitionID PartitionID)
 
 //============================================
 // Events
@@ -113,4 +112,21 @@ type Node struct {
 	ID          NodeID
 	Address     string
 	ModRevision Revision
+}
+
+//============================================
+// Interfaces
+//============================================
+
+// Runner ...
+type Runner func(ctx context.Context, partitionID PartitionID)
+
+// EtcdClient ...
+type EtcdClient interface {
+	WatchLease(ctx context.Context) <-chan LeaseID
+	WatchLeader(ctx context.Context) <-chan NodeID
+	WatchNodes(ctx context.Context, prefix string) <-chan NodeEvents
+	WatchExpectedPartitions(ctx context.Context, prefix string) <-chan ExpectedPartitionEvents
+	WatchCurrentPartitions(ctx context.Context, prefix string) <-chan CurrentPartitionEvents
+	CompareAndSet(ctx context.Context, kvs []CASKeyValue) error
 }

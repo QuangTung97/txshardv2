@@ -298,6 +298,20 @@ func handleCurrentPartitionEvents(s *State, events CurrentPartitionEvents) (*Sta
 	return newState, computeHandleOutput(s, newState)
 }
 
+func handleRunnerEvents(s *State, events RunnerEvents) (*State, HandleOutput) {
+	newState := s.Clone()
+
+	for _, event := range events.Events {
+		if event.Type == RunnerEventTypeStart {
+			newState.partitions[event.PartitionID].Running = true
+		} else {
+			newState.partitions[event.PartitionID].Running = false
+		}
+	}
+
+	return newState, computeHandleOutput(s, newState)
+}
+
 func nodesEqual(a, b map[NodeID]Node) bool {
 	if len(a) != len(b) {
 		return false
@@ -320,6 +334,7 @@ func handleEvents(ctx context.Context, oldState *State,
 	nodeEventsChan <-chan NodeEvents,
 	expectedPartitionChan <-chan ExpectedPartitionEvents,
 	currentPartitionChan <-chan CurrentPartitionEvents,
+	runnerChan <-chan RunnerEvents,
 	after <-chan time.Time,
 ) (*State, HandleOutput) {
 	select {
@@ -337,6 +352,9 @@ func handleEvents(ctx context.Context, oldState *State,
 
 	case events := <-currentPartitionChan:
 		return handleCurrentPartitionEvents(oldState, events)
+
+	case runnerEvents := <-runnerChan:
+		return handleRunnerEvents(oldState, runnerEvents)
 
 	case <-after:
 		return oldState, computeHandleOutputForRetry(oldState)
