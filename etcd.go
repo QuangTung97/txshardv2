@@ -3,7 +3,6 @@ package txshardv2
 import (
 	"context"
 	"errors"
-	"fmt"
 	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/clientv3/concurrency"
 	"go.etcd.io/etcd/mvcc/mvccpb"
@@ -100,9 +99,8 @@ func (m *EtcdManager) Run(originalCtx context.Context) {
 		case <-ctx.Done():
 			_ = election.Resign(context.Background())
 			_ = sess.Close()
-			fmt.Println("ctx.Done")
 			if originalCtx.Err() != nil {
-				fmt.Println("originalCtx.Done")
+				m.logger.Debug("EtcdManager Stopped")
 				return
 			}
 			continue

@@ -285,6 +285,18 @@ func TestComputeHandleOutput(t *testing.T) {
 			},
 		},
 		{
+			name: "lease-not-changed.nodes-empty",
+			before: func(s *State) {
+				s.leaseID = 5511
+				s.nodes = map[NodeID]Node{}
+			},
+			after: func(s *State) {
+				s.nodes = map[NodeID]Node{}
+				s.leaseID = 5511
+			},
+			output: HandleOutput{},
+		},
+		{
 			name:           "leader-changed",
 			partitionCount: 3,
 			before: func(s *State) {

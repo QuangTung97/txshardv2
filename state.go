@@ -101,8 +101,9 @@ func computeHandleOutput(oldState *State, newState *State) HandleOutput {
 	conf := oldState.config
 
 	var kvs []CASKeyValue
-	_, selfNodeExisted := newState.nodes[conf.SelfNodeID]
-	if newState.leaseID != oldState.leaseID || !selfNodeExisted {
+	_, selfNodeOldExisted := oldState.nodes[conf.SelfNodeID]
+	_, selfNodeNewExisted := newState.nodes[conf.SelfNodeID]
+	if newState.leaseID != oldState.leaseID || (selfNodeOldExisted && !selfNodeNewExisted) {
 		if newState.leaseID != 0 {
 			kvs = append(kvs, CASKeyValue{
 				Type:    EventTypePut,

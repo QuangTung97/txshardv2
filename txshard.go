@@ -46,9 +46,9 @@ type watchChannels struct {
 }
 
 // Run ...
-func (s *System) Run(ctx context.Context) {
-	managerCtx, managerCancel := context.WithCancel(ctx)
-	runCtx, runCancel := context.WithCancel(ctx)
+func (s *System) Run(originalCtx context.Context) {
+	managerCtx, managerCancel := context.WithCancel(context.Background())
+	runCtx, runCancel := context.WithCancel(context.Background())
 
 	var managerWg sync.WaitGroup
 	managerWg.Add(1)
@@ -76,7 +76,7 @@ func (s *System) Run(ctx context.Context) {
 		runLoop(runCtx, s.logger, time.Minute, s.runner, s.conf, s.manager, channels)
 	}()
 
-	<-ctx.Done()
+	<-originalCtx.Done()
 
 	runCancel()
 	runWg.Wait()
