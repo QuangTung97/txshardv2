@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"strconv"
 	"sync"
+	"time"
 )
 
 func main() {
@@ -37,7 +38,10 @@ func main() {
 	system := txshardv2.NewSystem(nodeID, address,
 		"sample", 4,
 		func(ctx context.Context, partitionID txshardv2.PartitionID) {
-
+			logger.Info("Runner Start", zap.Any("runner.partition.id", partitionID))
+			<-ctx.Done()
+			time.Sleep(2 * time.Second)
+			logger.Info("Runner Stop", zap.Any("runner.partition.id", partitionID))
 		},
 		clientv3.Config{
 			Endpoints: []string{

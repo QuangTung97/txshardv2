@@ -113,9 +113,11 @@ func computeHandleOutput(oldState *State, newState *State) HandleOutput {
 		}
 	}
 
+	nodesChanged := !nodesEqual(newState.nodes, oldState.nodes)
+
 	if newState.leaderID != oldState.leaderID ||
 		!partitionExpectedEqual(newState.partitions, oldState.partitions) ||
-		!nodesEqual(newState.nodes, oldState.nodes) {
+		nodesChanged {
 		kvs = append(kvs, computeExpectedPartitionKvs(newState)...)
 	}
 
@@ -125,7 +127,8 @@ func computeHandleOutput(oldState *State, newState *State) HandleOutput {
 	for id := PartitionID(0); id < conf.PartitionCount; id++ {
 		newPartition := newState.partitions[id]
 		oldPartition := oldState.partitions[id]
-		if partitionDataEqual(newPartition.Expected, oldPartition.Expected) &&
+		if !nodesChanged &&
+			partitionDataEqual(newPartition.Expected, oldPartition.Expected) &&
 			partitionDataEqual(newPartition.Current, oldPartition.Current) {
 			continue
 		}

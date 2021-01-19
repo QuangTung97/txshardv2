@@ -3,6 +3,7 @@ package txshardv2
 import (
 	"context"
 	"errors"
+	"fmt"
 	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/clientv3/concurrency"
 	"go.etcd.io/etcd/mvcc/mvccpb"
@@ -70,19 +71,19 @@ func (m *EtcdManager) Run(originalCtx context.Context) {
 
 		m.leaseChan <- LeaseID(sess.Lease())
 
+		election := concurrency.NewElection(sess, m.leaderPrefix)
+		observeChan := election.Observe(ctx)
+
 		go func() {
-			election := concurrency.NewElection(sess, m.leaderPrefix)
-			observeChan := election.Observe(ctx)
-
-			go func() {
-				for res := range observeChan {
-					for _, kv := range res.Kvs {
-						num := getNumber(string(kv.Value))
-						m.leaderChan <- NodeID(num)
-					}
+			for res := range observeChan {
+				for _, kv := range res.Kvs {
+					num := getNumber(string(kv.Value))
+					m.leaderChan <- NodeID(num)
 				}
-			}()
+			}
+		}()
 
+		go func() {
 			err := election.Campaign(ctx, formatNodeID(m.selfNodeID))
 			if err != nil {
 				m.logger.Error("campaign expired")
@@ -93,11 +94,15 @@ func (m *EtcdManager) Run(originalCtx context.Context) {
 		select {
 		case <-sess.Done():
 			m.logger.Error("lease expired")
+			_ = election.Resign(context.Background())
 			_ = sess.Close()
 			continue
 		case <-ctx.Done():
+			_ = election.Resign(context.Background())
 			_ = sess.Close()
+			fmt.Println("ctx.Done")
 			if originalCtx.Err() != nil {
+				fmt.Println("originalCtx.Done")
 				return
 			}
 			continue
