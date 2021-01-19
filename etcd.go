@@ -58,10 +58,8 @@ func (m *EtcdManager) WatchLeader(context.Context) <-chan NodeID {
 }
 
 // Run ...
-func (m *EtcdManager) Run(originalCtx context.Context) {
+func (m *EtcdManager) Run(ctx context.Context) {
 	for {
-		ctx, cancel := context.WithCancel(originalCtx)
-
 		sess, err := concurrency.NewSession(m.client)
 		if err != nil {
 			m.logger.Error("concurrency.NewSession", zap.Error(err))
@@ -82,31 +80,26 @@ func (m *EtcdManager) Run(originalCtx context.Context) {
 			}
 		}()
 
-		go func() {
-			err := election.Campaign(ctx, formatNodeID(m.selfNodeID))
-			if ctx.Err() != nil {
-				return
-			}
-			if err != nil {
-				m.logger.Error("campaign expired", zap.Error(err))
-				cancel()
-			}
-		}()
+		err = election.Campaign(ctx, formatNodeID(m.selfNodeID))
+		if ctx.Err() != nil {
+			_ = sess.Close()
+			return
+		}
+		if err != nil {
+			m.logger.Error("election.Campaign", zap.Error(err))
+			_ = sess.Close()
+			continue
+		}
+		m.logger.Info("Leader Elected", zap.String("leader.key", election.Key()))
 
 		select {
 		case <-sess.Done():
 			m.logger.Error("lease expired")
-			_ = election.Resign(context.Background())
 			_ = sess.Close()
 			continue
 		case <-ctx.Done():
-			_ = election.Resign(context.Background())
 			_ = sess.Close()
-			if originalCtx.Err() != nil {
-				m.logger.Debug("EtcdManager Stopped")
-				return
-			}
-			continue
+			return
 		}
 	}
 }
