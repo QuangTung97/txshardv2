@@ -128,7 +128,7 @@ func computeHandleOutput(oldState *State, newState *State) HandleOutput {
 	for id := PartitionID(0); id < conf.PartitionCount; id++ {
 		newPartition := newState.partitions[id]
 		oldPartition := oldState.partitions[id]
-		if !nodesChanged &&
+		if newState.leaseID == oldState.leaseID &&
 			partitionDataEqual(newPartition.Expected, oldPartition.Expected) &&
 			partitionDataEqual(newPartition.Current, oldPartition.Current) {
 			continue

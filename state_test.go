@@ -608,8 +608,46 @@ func TestComputeHandleOutput(t *testing.T) {
 					},
 				}
 			},
+			output: HandleOutput{},
+		},
+		{
+			name:           "partition.lease-changed",
+			partitionCount: 3,
+			before: func(s *State) {
+				s.nodes = map[NodeID]Node{
+					12: {
+						ID: 12,
+					},
+				}
+				s.leaderID = 12
+
+				s.partitions[0].Expected = PartitionData{
+					Persisted:   true,
+					NodeID:      12,
+					ModRevision: 200,
+				}
+				s.partitions[1].Expected = PartitionData{
+					Persisted:   true,
+					NodeID:      12,
+					ModRevision: 201,
+				}
+				s.partitions[2].Expected = PartitionData{
+					Persisted:   true,
+					NodeID:      12,
+					ModRevision: 202,
+				}
+			},
+			after: func(s *State) {
+				s.leaseID = 1122
+			},
 			output: HandleOutput{
 				Kvs: []CASKeyValue{
+					{
+						Type:    EventTypePut,
+						Key:     "/node/12",
+						Value:   "self-address",
+						LeaseID: 1122,
+					},
 					{
 						Type:    EventTypePut,
 						Key:     "/partition/current/0",
