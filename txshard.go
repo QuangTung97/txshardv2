@@ -8,31 +8,42 @@ import (
 	"time"
 )
 
+// SystemConfig ...
+type SystemConfig struct {
+	NodeID         NodeID
+	Address        string
+	AppName        string
+	PartitionCount PartitionID
+	Runner         Runner
+	EtcdConf       clientv3.Config
+	EtcdTxnLimit   int
+	Logger         *zap.Logger
+}
+
 // System ...
 type System struct {
-	conf    *StateConfig
-	runner  Runner
-	logger  *zap.Logger
-	manager *EtcdManager
+	conf         *StateConfig
+	runner       Runner
+	logger       *zap.Logger
+	manager      *EtcdManager
+	etcdTxnLimit int
 }
 
 // NewSystem ...
-func NewSystem(nodeID NodeID, address string,
-	appName string, partitionCount PartitionID,
-	runner Runner, etcdConf clientv3.Config, logger *zap.Logger,
-) *System {
+func NewSystem(config SystemConfig) *System {
 	return &System{
 		conf: &StateConfig{
-			ExpectedPartitionPrefix: "/" + appName + "/partition/expected/",
-			CurrentPartitionPrefix:  "/" + appName + "/partition/current/",
-			NodePrefix:              "/" + appName + "/node/",
-			PartitionCount:          partitionCount,
-			SelfNodeID:              nodeID,
-			SelfNodeAddress:         address,
+			ExpectedPartitionPrefix: "/" + config.AppName + "/partition/expected/",
+			CurrentPartitionPrefix:  "/" + config.AppName + "/partition/current/",
+			NodePrefix:              "/" + config.AppName + "/node/",
+			PartitionCount:          config.PartitionCount,
+			SelfNodeID:              config.NodeID,
+			SelfNodeAddress:         config.Address,
 		},
-		runner:  runner,
-		logger:  logger,
-		manager: NewEtcdManager(logger, etcdConf, appName, nodeID),
+		runner:       config.Runner,
+		logger:       config.Logger,
+		manager:      NewEtcdManager(config.Logger, config.EtcdConf, config.AppName, config.NodeID),
+		etcdTxnLimit: config.EtcdTxnLimit,
 	}
 }
 
@@ -72,7 +83,7 @@ func (s *System) Run(originalCtx context.Context) {
 	go func() {
 		defer runWg.Done()
 
-		runLoop(runCtx, s.logger, time.Minute, s.runner, s.conf, s.manager, channels)
+		runLoop(runCtx, s.logger, time.Minute, s.runner, s.conf, s.manager, channels, s.etcdTxnLimit)
 	}()
 
 	<-originalCtx.Done()
@@ -94,13 +105,17 @@ type activeRunner struct {
 func runLoop(ctx context.Context, logger *zap.Logger,
 	timeoutDuration time.Duration,
 	runner Runner, conf *StateConfig, client EtcdClient,
-	channels *watchChannels,
+	channels *watchChannels, etcdTxnLimit int,
 ) {
 	runnerChan := make(chan RunnerEvents, conf.PartitionCount)
 	state := NewState(conf)
 	activeMap := make(map[PartitionID]activeRunner)
 
+	kvsUnique := newKvsUnique(etcdTxnLimit)
+
 	var after <-chan time.Time
+
+MainLoop:
 	for {
 		var output HandleOutput
 		state, output = handleEvents(ctx,
@@ -182,15 +197,23 @@ func runLoop(ctx context.Context, logger *zap.Logger,
 			}
 		}
 
-		if len(output.Kvs) > 0 {
-			err := client.CompareAndSet(ctx, output.Kvs)
+		kvsUnique.put(output.Kvs)
+		for {
+			kvs := kvsUnique.next()
+			if len(kvs) == 0 {
+				break
+			}
+
+			err := client.CompareAndSet(ctx, kvs)
 			if err != nil {
 				logger.Error("client.CompareAndSet", zap.Error(err),
-					zap.Any("kvs", output.Kvs),
+					zap.Any("kvs", kvs),
 				)
 				after = time.After(timeoutDuration)
-				continue
+				continue MainLoop
 			}
+
+			kvsUnique.completed(kvs)
 		}
 	}
 }

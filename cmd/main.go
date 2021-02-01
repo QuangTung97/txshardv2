@@ -29,26 +29,31 @@ func main() {
 	signal.Notify(done, os.Interrupt, os.Kill)
 
 	zapConf := zap.NewProductionConfig()
-	zapConf.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
+	zapConf.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
 	logger, err := zapConf.Build()
 	if err != nil {
 		panic(err)
 	}
 
-	system := txshardv2.NewSystem(nodeID, address,
-		"sample", 7,
-		func(ctx context.Context, partitionID txshardv2.PartitionID) {
+	system := txshardv2.NewSystem(txshardv2.SystemConfig{
+		NodeID:         nodeID,
+		Address:        address,
+		AppName:        "sample",
+		PartitionCount: 7,
+		Runner: func(ctx context.Context, partitionID txshardv2.PartitionID) {
 			logger.Info("Runner Start", zap.Any("runner.partition.id", partitionID))
 			<-ctx.Done()
 			time.Sleep(2 * time.Second)
 			logger.Info("Runner Stop", zap.Any("runner.partition.id", partitionID))
 		},
-		clientv3.Config{
+		EtcdConf: clientv3.Config{
 			Endpoints: []string{
 				"localhost:2379",
 			},
-		}, logger,
-	)
+		},
+		EtcdTxnLimit: 2,
+		Logger:       logger,
+	})
 
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
